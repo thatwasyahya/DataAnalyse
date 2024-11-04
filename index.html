@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="icon" type="image/x-icon" href="https://static.vecteezy.com/system/resources/previews/015/317/627/original/chart-icon-design-free-vector.jpg">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPS & ASTRE Scores</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            padding: 20px;
+            background-color: #f9f9f9;
+            color: #333;
+            margin: 0;
+        }
+
+        h1 {
+            color: #4A90E2;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+        }
+
+        #container {
+            height: 400px;
+            margin: 20px auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            background-color: #fff;
+            padding: 20px;
+        }
+
+        #results {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #fff;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        #results h2 {
+            color: #4A90E2;
+            font-size: 1.8em;
+        }
+        #results p {
+            font-size: 1.2em;
+        }
+
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 20px 0;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+
+        .control-group {
+            width: 100%;
+            max-width: 400px; 
+            margin: 15px 0; 
+        }
+
+        label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+            font-size: 1.1em;
+        }
+
+        select, input[type="range"], button {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        select:focus, input[type="range"]:focus {
+            border-color: #4A90E2;
+            outline: none;
+            box-shadow: 0 0 5px rgba(74, 144, 226, 0.5);
+        }
+
+        button {
+            background-color: #4A90E2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        button:hover {
+            background-color: #357ABD;
+            transform: scale(1.05);
+        }
+
+        .slider-container {
+            width: 100%;
+            margin: 20px 0;
+        }
+
+        .slider-label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        #weightValue, #importanceValue {
+            font-weight: bold;
+            font-size: 1em;
+            margin-top: 5px;
+            color: #4A90E2;
+        }
+
+        /* Responsive design */
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 2em;
+            }
+
+            select, input[type="range"], button {
+                width: 90%;
+            }
+        }
+    </style>
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://code.highcharts.com/modules/exporting.js"></script>
+</head>
+<body>
+    <h1>Pourcentages IPS et ASTRE par Étudiant</h1>
+    
+    <div id="container"></div>
+
+    <div id="results">
+        <h2>Résultats</h2>
+        <p>Étudiants IPS : <span id="ipsCount">0</span></p>
+        <p>Étudiants ASTRE : <span id="astreCount">0</span></p>
+    </div>
+    
+    <div class="control-panel">
+        <div class="control-group">
+            <label for="filiere">Choisir une filière :</label>
+            <select id="filiere">
+                <option value="ips">IPS</option>
+                <option value="astre">ASTRE</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label for="hypothesis">Choisir une hypothèse :</label>
+            <select id="hypothesis">
+            </select>
+        </div>
+
+        <div class="slider-container">
+            <label class="slider-label" for="weightSlider">Pondération :</label>
+            <input type="range" id="weightSlider" min="1" max="5" value="1">
+            <span id="weightValue">1</span>
+        </div>
+
+        <div class="slider-container">
+            <label class="slider-label" for="importanceSlider">Degré d'importance :</label>
+            <input type="range" id="importanceSlider" min="1" max="5" value="1">
+            <span id="importanceValue">1</span>
+        </div>
+
+        <button id="updateDelta">Mettre à jour le graphique</button>
+    </div>
+
+    <script>
+        let hypotheses = [];
+
+        async function fetchHypotheses() {
+            try {
+                const response = await fetch('/api/hypotheses');
+                hypotheses = await response.json();
+                console.log('Hypothèses récupérées:', hypotheses);
+                updateHypothesisOptions();
+            } catch (error) {
+                console.error('Erreur lors du chargement des hypothèses:', error);
+            }
+        }
+
+        function updateHypothesisOptions() {
+            const filiere = document.getElementById('filiere').value;
+            const hypothesisSelect = document.getElementById('hypothesis');
+            hypothesisSelect.innerHTML = '';
+
+            const filteredHypotheses = hypotheses.filter(hypo => hypo["Filière"] === filiere);
+            console.log('Filière sélectionnée:', filiere);
+            console.log('Hypothèses filtrées:', filteredHypotheses);
+
+            if (filteredHypotheses.length > 0) {
+                filteredHypotheses.forEach(hypothesis => {
+                    const option = document.createElement('option');
+                    option.value = hypothesis["Hypothèse"];
+                    option.textContent = hypothesis["Hypothèse"];
+                    hypothesisSelect.appendChild(option);
+                });
+            } else {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'Aucune hypothèse disponible';
+                hypothesisSelect.appendChild(option);
+            }
+        }
+
+        document.getElementById('filiere').addEventListener('change', () => {
+            updateHypothesisOptions();
+            console.log('Filière sélectionnée:', document.getElementById('filiere').value);
+        });
+
+        async function fetchScores() {
+            try {
+                const response = await fetch('/api/scores');
+                if (!response.ok) throw new Error('Échec du chargement des scores');
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Erreur lors du chargement des scores:', error);
+            }
+        }
+
+        function updateSliderValue(slider, display) {
+            display.textContent = slider.value;
+        }
+
+        async function initChart(scores) {
+            const students = scores.map(item => item["Numero etudiant"]);
+            const ipsScores = scores.map(item => -item["IPS_percentage"]);
+            const astreScores = scores.map(item => item["ASTRE_percentage"]);
+
+            Highcharts.chart('container', {
+                chart: {
+                    type: 'bar'
+                },
+                title: {
+                    text: 'Comparaison des pourcentages IPS et ASTRE par étudiant',
+                    align: 'left'
+                },
+                xAxis: [{
+                    categories: students,
+                    reversed: false,
+                    labels: {
+                        step: 1
+                    }
+                }, {
+                    opposite: true,
+                    reversed: false
+                }],
+                yAxis: {
+                    title: { text: null },
+                    labels: { format: '{value}%' }
+                },
+                plotOptions: {
+                    series: {
+                        stacking: 'normal'
+                    }
+                },
+                series: [{
+                    name: 'IPS (%)',
+                    data: ipsScores,
+                    color: 'blue'
+                }, {
+                    name: 'ASTRE (%)',
+                    data: astreScores,
+                    color: 'red'
+                }]
+            });
+        }
+
+        
+        async function fetchResults() {
+            try {
+                const response = await fetch('/api/results');
+                const data = await response.json();
+                document.getElementById('ipsCount').textContent = data.ips;
+                document.getElementById('astreCount').textContent = data.astre;
+            } catch (error) {
+                console.error('Erreur lors du chargement des résultats:', error);
+            }
+        }
+
+        // Fetch and display results on page load
+        fetchResults();
+
+        // Also fetch results when updating scores
+        async function updateDelta() {
+            const filiere = document.getElementById('filiere').value;
+            const hypothesis = document.getElementById('hypothesis').value;
+            const weight = document.getElementById('weightSlider').value;
+            const importance = document.getElementById('importanceSlider').value;
+
+            try {
+                const response = await fetch('/api/updatedelta', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ filiere, hypothesis, weight, importance })
+                });
+
+                if (!response.ok) throw new Error('Échec de la mise à jour des conditions');
+
+                const data = await response.json();
+                const updatedScores = data.scores;
+
+                initChart(updatedScores);
+                fetchResults();  // Refresh results after updating scores
+
+            } catch (error) {
+                console.error('Erreur lors de la mise à jour des conditions:', error);
+            }
+        }
+
+        document.getElementById('updateDelta').addEventListener('click', updateDelta);
+
+
+        const weightSlider = document.getElementById('weightSlider');
+        const importanceSlider = document.getElementById('importanceSlider');
+
+        weightSlider.addEventListener('input', () => {
+            updateSliderValue(weightSlider, document.getElementById('weightValue'));
+        });
+
+        importanceSlider.addEventListener('input', () => {
+            updateSliderValue(importanceSlider, document.getElementById('importanceValue'));
+        });
+
+        fetchHypotheses();
+        fetchScores().then(initChart);
+
+        
+    </script>
+</body>
+</html>
