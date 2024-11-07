@@ -210,6 +210,18 @@
                 option.textContent = 'Aucune hypothèse disponible';
                 hypothesisSelect.appendChild(option);
             }
+
+            // Ajout de la logique pour afficher des messages spécifiques
+            const messageDiv = document.getElementById('message');
+            const hypothesis = document.getElementById('hypothesis').value;
+        
+            if (filiere === 'ips' && hypothesis === 'Oui') {
+                messageDiv.textContent = 'Envisager Auto-entreprenariat';
+            } else if (filiere === 'astre') {
+                messageDiv.textContent = 'Choix de filière en amont';
+            } else {
+                messageDiv.textContent = ''; // Supprimer tout message s'il n'y a pas de condition remplie
+            }
         }
 
         document.getElementById('filiere').addEventListener('change', () => {
